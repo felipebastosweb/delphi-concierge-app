@@ -1,0 +1,45 @@
+object HomeForm: THomeForm
+  Left = 0
+  Top = 0
+  Caption = 'Concierge App'
+  ClientHeight = 613
+  ClientWidth = 300
+  Fill.Kind = Solid
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnShow = FormShow
+  DesignerMasterStyle = 0
+  object Rectangle1: TRectangle
+    Align = Top
+    Fill.Kind = None
+    Size.Width = 300.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Kind = None
+    object Label1: TLabel
+      Align = MostLeft
+      StyledSettings = [Family, Size, FontColor]
+      Margins.Left = 5.000000000000000000
+      Position.X = 5.000000000000000000
+      Size.Width = 120.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.StyleExt = {00070000000000000004000000}
+      Text = 'Concierge App'
+      TabOrder = 0
+    end
+  end
+  object ListView1: TListView
+    ItemAppearanceClassName = 'TListItemAppearance'
+    ItemEditAppearanceClassName = 'TListItemShowCheckAppearance'
+    HeaderAppearanceClassName = 'TListHeaderObjects'
+    FooterAppearanceClassName = 'TListHeaderObjects'
+    Align = Client
+    Size.Width = 300.000000000000000000
+    Size.Height = 573.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+  end
+end
