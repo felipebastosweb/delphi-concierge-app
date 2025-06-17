@@ -1,0 +1,489 @@
+### ⚡️ Visão-geral rápida  
+– **Delphi 11 Alexandria** (ou superior)  
+– **FMX** puro (sem frameworks terceiros)  
+– Padrão “1 entidade = 1 unit” + uma superclasse abstrata `TEntity`  
+– Validações embutidas → exceções específicas  
+– Enumerações fortes + *helper* para string ↔ enum  
+– Gatilho de evento simples (`TEvent`) para notificar mudanças de estado (útil na UI)  
+
+> Copie-e-cole cada bloco *.pas* diretamente no seu projeto `src\domain\`. Tudo compila standalone; depois você injeta persistência/serviços à vontade.
+
+---
+
+## 0. Superclasse base – `uEntity.pas`
+
+```pascal
+unit uEntity;
+
+interface
+
+uses
+  System.SysUtils, System.DateUtils, System.Classes, System.Generics.Collections;
+
+type
+  // Evento leve p/ observar alterações
+  TEvent = class
+  strict private
+    FSubs: TList<TProc>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Subscribe(const P: TProc);
+    procedure Notify;
+  end;
+
+  // Raiz de TODAS as entidades
+  TEntity = class abstract
+  strict private
+    FID          : string;
+    FOnChanged   : TEvent;
+  protected
+    procedure DoChanged; virtual;
+  public
+    constructor Create; overload; virtual;
+    constructor CreateFromId(const AID: string); overload; virtual;
+    procedure Validate; virtual; abstract;
+
+    property ID        : string read FID write FID;
+    property OnChanged : TEvent read FOnChanged;
+  end;
+
+implementation
+
+{ TEvent }
+
+constructor TEvent.Create;
+begin
+  inherited Create;
+  FSubs := TList<TProc>.Create;
+end;
+
+destructor TEvent.Destroy;
+begin
+  FSubs.Free;
+  inherited;
+end;
+
+procedure TEvent.Subscribe(const P: TProc);
+begin
+  FSubs.Add(P);
+end;
+
+procedure TEvent.Notify;
+var L : TProc;
+begin
+  for L in FSubs do
+    L();
+end;
+
+{ TEntity }
+
+constructor TEntity.Create;
+begin
+  inherited;
+  FID := GUIDToString(TGUID.NewGuid).Replace('{','').Replace('}','');
+  FOnChanged := TEvent.Create;
+end;
+
+constructor TEntity.CreateFromId(const AID: string);
+begin
+  Create;
+  FID := AID;
+end;
+
+procedure TEntity.DoChanged;
+begin
+  if Assigned(FOnChanged) then
+    FOnChanged.Notify;
+end;
+
+end.
+```
+
+---
+
+## 1. `TUsuario` – `uUsuario.pas`
+
+```pascal
+unit uUsuario;
+
+interface
+
+uses
+  uEntity, System.SysUtils, System.Hash, System.RegularExpressions;
+
+type
+  TTipoUsuario = (tuCondomino, tuPorteiro, tuSindico);
+
+  TTipoUsuarioHelper = record helper for TTipoUsuario
+    function ToStr: string;
+    class function FromStr(const S: string): TTipoUsuario; static;
+  end;
+
+  EUsuarioException = class(Exception);
+
+  TUsuario = class(TEntity)
+  strict private
+    FNome      : string;
+    FTipo      : TTipoUsuario;
+    FLogin     : string;
+    FSenhaHash : string;
+    procedure SetSenha(const APlain: string);
+  public
+    // --------- API pública ----------
+    constructor Create; override;
+    procedure DefinirSenha(const APlain: string);
+    function   VerificarSenha(const APlain: string): Boolean;
+
+    // Overrides
+    procedure Validate; override;
+
+    // Props
+    property Nome  : string         read FNome   write FNome;
+    property Tipo  : TTipoUsuario   read FTipo   write FTipo;
+    property Login : string         read FLogin  write FLogin;
+  end;
+
+implementation
+
+{ helper }
+
+function TTipoUsuarioHelper.ToStr: string;
+begin
+  case Self of
+    tuCondomino: Result := 'condomino';
+    tuPorteiro : Result := 'porteiro';
+    tuSindico  : Result := 'sindico';
+  end;
+end;
+
+class function TTipoUsuarioHelper.FromStr(const S: string): TTipoUsuario;
+begin
+  if SameText(S,'porteiro') then Exit(tuPorteiro);
+  if SameText(S,'sindico')  then Exit(tuSindico);
+  Result := tuCondomino;
+end;
+
+{ TUsuario }
+
+constructor TUsuario.Create;
+begin
+  inherited;
+  FTipo := tuCondomino;
+end;
+
+procedure TUsuario.DefinirSenha(const APlain: string);
+begin
+  SetSenha(APlain);
+  DoChanged;
+end;
+
+procedure TUsuario.SetSenha(const APlain: string);
+begin
+  if not TRegEx.IsMatch(APlain, '(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}') then
+    raise EUsuarioException.Create('Senha fraca: mínimo 8 caracteres, número, maiúscula e minúscula.');
+  FSenhaHash := THashSHA2.GetHashString(APlain);
+end;
+
+function TUsuario.VerificarSenha(const APlain: string): Boolean;
+begin
+  Result := THashSHA2.GetHashString(APlain) = FSenhaHash;
+end;
+
+procedure TUsuario.Validate;
+begin
+  if Login.Trim.IsEmpty then
+    raise EUsuarioException.Create('Login obrigatório.');
+  if FSenhaHash.IsEmpty then
+    raise EUsuarioException.Create('Senha não definida.');
+end;
+
+end.
+```
+
+---
+
+## 2. `TUnidade` – `uUnidade.pas`
+
+```pascal
+unit uUnidade;
+
+interface
+
+uses
+  uEntity, uUsuario, System.SysUtils;
+
+type
+  EUnidadeException = class(Exception);
+
+  TUnidade = class(TEntity)
+  strict private
+    FNumero     : string;  // ex: "A-101"
+    FProprietario: TUsuario;
+  public
+    destructor Destroy; override;
+    procedure  Validate; override;
+
+    property Numero       : string   read FNumero        write FNumero;
+    property Proprietario : TUsuario read FProprietario  write FProprietario;
+  end;
+
+implementation
+
+destructor TUnidade.Destroy;
+begin
+  FProprietario.Free;
+  inherited;
+end;
+
+procedure TUnidade.Validate;
+begin
+  if Numero.Trim.IsEmpty then
+    raise EUnidadeException.Create('Número da unidade não informado.');
+  if FProprietario = nil then
+    raise EUnidadeException.Create('Proprietário não definido.');
+  FProprietario.Validate;
+end;
+
+end.
+```
+
+---
+
+## 3. `TEncomenda` – `uEncomenda.pas`
+
+```pascal
+unit uEncomenda;
+
+interface
+
+uses
+  uEntity, System.SysUtils, uUsuario;
+
+type
+  TStatusEncomenda = (seRecebida, seEntregue, seExtraviada);
+
+  TStatusEncomendaHelper = record helper for TStatusEncomenda
+    function ToStr: string;
+    class function FromStr(const S: string): TStatusEncomenda; static;
+  end;
+
+  EEncomendaException = class(Exception);
+
+  TEncomenda = class(TEntity)
+  strict private
+    FDestinatario     : TUsuario; // quem vai receber
+    FCodigoRastreamento: string;
+    FStatus           : TStatusEncomenda;
+    FDataHoraEvento   : TDateTime;
+    procedure SetStatus(const Value: TStatusEncomenda);
+  public
+    destructor Destroy; override;
+    procedure Validate; override;
+
+    property Destinatario      : TUsuario          read FDestinatario  write FDestinatario;
+    property CodigoRastreamento: string            read FCodigoRastreamento write FCodigoRastreamento;
+    property Status            : TStatusEncomenda  read FStatus        write SetStatus;
+    property DataHoraEvento    : TDateTime         read FDataHoraEvento;
+  end;
+
+implementation
+
+{ helper }
+
+function TStatusEncomendaHelper.ToStr: string;
+begin
+  case Self of
+    seRecebida : Result := 'Recebida';
+    seEntregue : Result := 'Entregue';
+    seExtraviada: Result := 'Extraviada';
+  end;
+end;
+
+class function TStatusEncomendaHelper.FromStr(const S: string): TStatusEncomenda;
+begin
+  if SameText(S,'Entregue') then Exit(seEntregue);
+  if SameText(S,'Extraviada') then Exit(seExtraviada);
+  Result := seRecebida;
+end;
+
+{ TEncomenda }
+
+destructor TEncomenda.Destroy;
+begin
+  FDestinatario.Free;
+  inherited;
+end;
+
+procedure TEncomenda.SetStatus(const Value: TStatusEncomenda);
+begin
+  // regra simples: não volta para RECEBIDA depois de ENTREGUE/EXTRAVIADA
+  if (FStatus <> seRecebida) and (Value = seRecebida) then
+    raise EEncomendaException.Create('Transição de status inválida.');
+  FStatus := Value;
+  FDataHoraEvento := Now;
+  DoChanged;
+end;
+
+procedure TEncomenda.Validate;
+begin
+  if FDestinatario = nil then
+    raise EEncomendaException.Create('Destinatário não definido.');
+  if CodigoRastreamento.Trim.IsEmpty then
+    raise EEncomendaException.Create('Código de rastreamento obrigatório.');
+end;
+
+end.
+```
+
+---
+
+## 4. `TVisitante` – `uVisitante.pas`
+
+```pascal
+unit uVisitante;
+
+interface
+
+uses
+  uEntity, System.SysUtils, uUnidade;
+
+type
+  EVisitanteException = class(Exception);
+
+  TVisitante = class(TEntity)
+  strict private
+    FNome          : string;
+    FDocumento     : string;
+    FUnidadeVisita : TUnidade;
+    FEntrada       : TDateTime;
+    FSaida         : TDateTime;
+  public
+    destructor Destroy; override;
+    procedure  RegistrarEntrada;
+    procedure  RegistrarSaida;
+    procedure  Validate; override;
+
+    property Nome          : string    read FNome           write FNome;
+    property Documento     : string    read FDocumento      write FDocumento;
+    property UnidadeVisita : TUnidade  read FUnidadeVisita  write FUnidadeVisita;
+    property Entrada       : TDateTime read FEntrada;
+    property Saida         : TDateTime read FSaida;
+  end;
+
+implementation
+
+destructor TVisitante.Destroy;
+begin
+  FUnidadeVisita.Free;
+  inherited;
+end;
+
+procedure TVisitante.RegistrarEntrada;
+begin
+  FEntrada := Now;
+  DoChanged;
+end;
+
+procedure TVisitante.RegistrarSaida;
+begin
+  if FEntrada = 0 then
+    raise EVisitanteException.Create('Entrada não registrada.');
+  FSaida := Now;
+  DoChanged;
+end;
+
+procedure TVisitante.Validate;
+begin
+  if Nome.Trim.IsEmpty then
+    raise EVisitanteException.Create('Nome do visitante obrigatório.');
+  if FUnidadeVisita = nil then
+    raise EVisitanteException.Create('Unidade a visitar não definida.');
+end;
+
+end.
+```
+
+---
+
+## 5. `TReservaSalao` – `uReservaSalao.pas`
+
+```pascal
+unit uReservaSalao;
+
+interface
+
+uses
+  uEntity, System.SysUtils, uUnidade;
+
+type
+  TStatusReserva = (srPendente, srAprovada, srRecusada, srCancelada);
+
+  TStatusReservaHelper = record helper for TStatusReserva
+    function ToStr: string;
+  end;
+
+  EReservaException = class(Exception);
+
+  TReservaSalao = class(TEntity)
+  strict private
+    FUnidadeSolicitante: TUnidade;
+    FInicio            : TDateTime;
+    FFim               : TDateTime;
+    FStatus            : TStatusReserva;
+    procedure SetStatus(const Value: TStatusReserva);
+  public
+    destructor Destroy; override;
+    procedure Validate; override;
+
+    property UnidadeSolicitante: TUnidade      read FUnidadeSolicitante write FUnidadeSolicitante;
+    property Inicio            : TDateTime     read FInicio            write FInicio;
+    property Fim               : TDateTime     read FFim               write FFim;
+    property Status            : TStatusReserva read FStatus           write SetStatus;
+  end;
+
+implementation
+
+{ helper }
+
+function TStatusReservaHelper.ToStr: string;
+begin
+  case Self of
+    srPendente : Result := 'Pendente';
+    srAprovada : Result := 'Aprovada';
+    srRecusada : Result := 'Recusada';
+    srCancelada: Result := 'Cancelada';
+  end;
+end;
+
+{ TReservaSalao }
+
+destructor TReservaSalao.Destroy;
+begin
+  FUnidadeSolicitante.Free;
+  inherited;
+end;
+
+procedure TReservaSalao.SetStatus(const Value: TStatusReserva);
+begin
+  // Exemplo de regra: só Pendente pode virar Aprovada/Recusada; Cancelada qualquer hora
+  if (FStatus <> srPendente) and
+     (Value in [srAprovada, srRecusada]) then
+    raise EReservaException.Create('Transição inválida de status.');
+  FStatus := Value;
+  DoChanged;
+end;
+
+procedure TReservaSalao.Validate;
+begin
+  if FUnidadeSolicitante = nil then
+    raise EReservaException.Create('Unidade solicitante obrigatória.');
+  if FInicio >= FFim then
+    raise EReservaException.Create('Horário final deve ser > inicial.');
+end;
+
+end.
+```
+
+---
+
