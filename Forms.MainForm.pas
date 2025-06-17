@@ -5,12 +5,28 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
-  FMX.Controls.Presentation, FMX.StdCtrls, FMX.Objects;
+  FMX.Controls.Presentation, FMX.StdCtrls, FMX.Objects, FMX.Effects, FMX.Ani,
+  FMX.ListBox, FMX.Layouts;
 
 type
   TMainForm = class(TForm)
+    VertScrollBox1: TVertScrollBox;
+    Label3: TLabel;
+    Layout1: TLayout;
+    ListBox1: TListBox;
+    ListBoxItem1: TListBoxItem;
+    ListBoxItem2: TListBoxItem;
+    ListBoxItem3: TListBoxItem;
+    Layout2: TLayout;
     RoundRect1: TRoundRect;
     Label1: TLabel;
+    GradientAnimation1: TGradientAnimation;
+    ShadowEffect1: TShadowEffect;
+    RoundRect2: TRoundRect;
+    Label2: TLabel;
+    GradientAnimation2: TGradientAnimation;
+    ShadowEffect2: TShadowEffect;
+    Label4: TLabel;
     procedure RoundRect1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
