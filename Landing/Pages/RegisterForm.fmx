@@ -1,0 +1,313 @@
+object RegisterForm1: TRegisterForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form2'
+  ClientHeight = 700
+  ClientWidth = 400
+  Fill.Kind = Solid
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 3
+  object Rectangle2: TRectangle
+    Align = Center
+    Fill.Color = claWhitesmoke
+    Padding.Left = 15.000000000000000000
+    Padding.Top = 5.000000000000000000
+    Padding.Right = 15.000000000000000000
+    Padding.Bottom = 5.000000000000000000
+    RotationCenter.X = 0.200000002980232200
+    Size.Width = 348.000000000000000000
+    Size.Height = 489.000000000000000000
+    Size.PlatformDefault = False
+    Stroke.Kind = None
+    object Label1: TLabel
+      Align = Top
+      StyledSettings = [Family, Style, FontColor]
+      Margins.Top = 10.000000000000000000
+      Margins.Bottom = 10.000000000000000000
+      Position.X = 15.000000000000000000
+      Position.Y = 15.000000000000000000
+      Size.Width = 318.000000000000000000
+      Size.Height = 25.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.Size = 20.000000000000000000
+      TextSettings.HorzAlign = Center
+      Text = 'Sign Up'
+      TabOrder = 0
+    end
+    object RoundRect1: TRoundRect
+      Align = Top
+      Fill.Color = claCornflowerblue
+      Margins.Left = 50.000000000000000000
+      Margins.Right = 50.000000000000000000
+      Position.X = 65.000000000000000000
+      Position.Y = 417.500000000000000000
+      Size.Width = 218.000000000000000000
+      Size.Height = 42.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      OnClick = RoundRect1Click
+      object Label2: TLabel
+        Align = Center
+        StyledSettings = [Family]
+        TextSettings.FontColor = claWhite
+        TextSettings.HorzAlign = Center
+        Text = 'Confirm'
+        TabOrder = 0
+      end
+      object ShadowEffect1: TShadowEffect
+        Distance = 2.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.300000011920929000
+        ShadowColor = claBlack
+      end
+    end
+    object CompanyNameBox: TRectangle
+      Align = Top
+      Fill.Color = claWhite
+      Padding.Left = 5.000000000000000000
+      Padding.Right = 5.000000000000000000
+      Margins.Top = 2.500000000000000000
+      Margins.Bottom = 10.000000000000000000
+      Position.X = 15.000000000000000000
+      Position.Y = 52.500000000000000000
+      Size.Width = 318.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      object UsernameEdit1: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 0
+        Position.X = 5.000000000000000000
+        Position.Y = 15.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        OnValidate = UsernameEdit1Validate
+      end
+      object CompanyNameLabel: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Position.X = 5.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 15.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'Username'
+        TabOrder = 1
+      end
+      object ShadowEffect2: TShadowEffect
+        Distance = 2.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.300000011920929000
+        ShadowColor = claBlack
+      end
+    end
+    object Rectangle3: TRectangle
+      Align = Top
+      Fill.Color = claWhitesmoke
+      Padding.Left = 5.000000000000000000
+      Padding.Right = 5.000000000000000000
+      Margins.Top = 2.500000000000000000
+      Margins.Bottom = 2.500000000000000000
+      Position.X = 15.000000000000000000
+      Position.Y = 355.000000000000000000
+      Size.Width = 318.000000000000000000
+      Size.Height = 60.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      object CheckBox1: TCheckBox
+        Align = Center
+        StyledSettings = [Family, Style, FontColor]
+        Size.Width = 322.000000000000000000
+        Size.Height = 19.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Text = 'I accept the Use Terms and Privacy Policy.'
+      end
+    end
+    object Rectangle4: TRectangle
+      Align = Top
+      Fill.Color = claWhite
+      Padding.Left = 5.000000000000000000
+      Padding.Right = 5.000000000000000000
+      Margins.Bottom = 10.000000000000000000
+      Position.X = 15.000000000000000000
+      Position.Y = 232.500000000000000000
+      Size.Width = 318.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      object EmailEdit1: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 0
+        Position.X = 5.000000000000000000
+        Position.Y = 15.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        OnValidate = EmailEdit1Validate
+      end
+      object Label5: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Position.X = 5.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 15.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'E-mail'
+        TabOrder = 1
+      end
+      object ShadowEffect5: TShadowEffect
+        Distance = 2.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.300000011920929000
+        ShadowColor = claBlack
+      end
+    end
+    object Rectangle5: TRectangle
+      Align = Top
+      Fill.Color = claWhite
+      Padding.Left = 5.000000000000000000
+      Padding.Right = 5.000000000000000000
+      Margins.Bottom = 10.000000000000000000
+      Position.X = 15.000000000000000000
+      Position.Y = 172.500000000000000000
+      Size.Width = 318.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      object RepeatPasswordEdit1: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 0
+        Position.X = 5.000000000000000000
+        Position.Y = 15.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        OnValidate = RepeatPasswordEdit1Validate
+      end
+      object Label6: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Position.X = 5.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 15.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'Repeat the Password'
+        TabOrder = 1
+      end
+      object ShadowEffect4: TShadowEffect
+        Distance = 2.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.300000011920929000
+        ShadowColor = claBlack
+      end
+    end
+    object Rectangle6: TRectangle
+      Align = Top
+      Fill.Color = claWhite
+      Padding.Left = 5.000000000000000000
+      Padding.Right = 5.000000000000000000
+      Margins.Bottom = 10.000000000000000000
+      Position.X = 15.000000000000000000
+      Position.Y = 112.500000000000000000
+      Size.Width = 318.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      object PasswordEdit1: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 0
+        Position.X = 5.000000000000000000
+        Position.Y = 15.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        OnValidate = PasswordEdit1Validate
+      end
+      object Label7: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Position.X = 5.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 15.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'Password'
+        TabOrder = 1
+      end
+      object ShadowEffect3: TShadowEffect
+        Distance = 2.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.300000011920929000
+        ShadowColor = claBlack
+      end
+    end
+    object Rectangle7: TRectangle
+      Align = Top
+      Fill.Color = claWhite
+      Padding.Left = 5.000000000000000000
+      Padding.Right = 5.000000000000000000
+      Margins.Bottom = 10.000000000000000000
+      Position.X = 15.000000000000000000
+      Position.Y = 292.500000000000000000
+      Size.Width = 318.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      object TelephoneEdit1: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 0
+        Position.X = 5.000000000000000000
+        Position.Y = 15.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+      end
+      object Label4: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Position.X = 5.000000000000000000
+        Size.Width = 308.000000000000000000
+        Size.Height = 15.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'Telephone'
+        TabOrder = 1
+      end
+      object ShadowEffect6: TShadowEffect
+        Distance = 2.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.300000011920929000
+        ShadowColor = claBlack
+      end
+    end
+  end
+  object Label8: TLabel
+    Align = Top
+    StyledSettings = [Family, Style, FontColor]
+    Margins.Left = 10.000000000000000000
+    Margins.Top = 10.000000000000000000
+    Margins.Right = 10.000000000000000000
+    Margins.Bottom = 10.000000000000000000
+    Position.X = 10.000000000000000000
+    Position.Y = 10.000000000000000000
+    Size.Width = 380.000000000000000000
+    Size.Height = 119.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 36.000000000000000000
+    TextSettings.HorzAlign = Center
+    Text = 'Project Manager App'
+    TabOrder = 0
+  end
+end

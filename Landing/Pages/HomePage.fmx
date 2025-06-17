@@ -1,0 +1,74 @@
+object HomePage: THomePage
+  Left = 0
+  Top = 0
+  Caption = 'RestrictForm1'
+  ClientHeight = 600
+  ClientWidth = 400
+  Fill.Kind = Solid
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop, iPhone, iPad]
+  DesignerMasterStyle = 3
+  object HeaderSection: TLayout
+    Align = Top
+    Size.Width = 400.000000000000000000
+    Size.Height = 50.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object Rectangle1: TRectangle
+      Align = Client
+      Fill.Color = claCornflowerblue
+      Size.Width = 400.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Color = claCornflowerblue
+      object Label1: TLabel
+        Align = Left
+        StyledSettings = [Family, Size, Style]
+        Margins.Left = 5.000000000000000000
+        Position.X = 5.000000000000000000
+        Size.Width = 153.000000000000000000
+        Size.Height = 50.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.FontColor = claWhitesmoke
+        Text = 'SchoolApp'
+        TabOrder = 0
+      end
+      object Button2: TButton
+        Align = MostRight
+        IconTintColor = claWhitesmoke
+        Position.X = 352.000000000000000000
+        Position.Y = 1.000000000000000000
+        Size.Width = 48.000000000000000000
+        Size.Height = 48.000000000000000000
+        Size.PlatformDefault = False
+        StyleLookup = 'drawertoolbutton'
+        TabOrder = 2
+        TextSettings.Trimming = None
+      end
+    end
+  end
+  object VertScrollBox1: TVertScrollBox
+    Align = Client
+    Size.Width = 400.000000000000000000
+    Size.Height = 550.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    Viewport.Width = 400.000000000000000000
+    Viewport.Height = 550.000000000000000000
+    object OrganizationLayout: TLayout
+      Align = Top
+      Size.Width = 400.000000000000000000
+      Size.Height = 41.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      object ComboBox1: TComboBox
+        Align = Top
+        Size.Width = 400.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+      end
+    end
+  end
+end

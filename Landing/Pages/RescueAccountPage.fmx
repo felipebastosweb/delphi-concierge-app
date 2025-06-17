@@ -1,0 +1,129 @@
+object RescueAccountPage1: TRescueAccountPage1
+  Left = 0
+  Top = 0
+  Caption = 'Rescue Your Account'
+  ClientHeight = 733
+  ClientWidth = 342
+  Fill.Kind = Solid
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop, iPhone, iPad]
+  DesignerMasterStyle = 3
+  object Layout1: TLayout
+    Align = Top
+    Size.Width = 342.000000000000000000
+    Size.Height = 50.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 5
+    object Button2: TButton
+      Align = MostLeft
+      Position.Y = 1.000000000000000000
+      Size.Width = 48.000000000000000000
+      Size.Height = 48.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = 'backtoolbutton'
+      TabOrder = 4
+      Text = 'Button1'
+      TextSettings.Trimming = None
+      OnClick = Button2Click
+    end
+  end
+  object Label2: TLabel
+    Align = Top
+    StyledSettings = [Family, Style, FontColor]
+    Margins.Top = 100.000000000000000000
+    Position.Y = 150.000000000000000000
+    Size.Width = 342.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 32.000000000000000000
+    TextSettings.HorzAlign = Center
+    Text = 'Rescue your Account'
+    TabOrder = 0
+  end
+  object Panel1: TPanel
+    Align = Top
+    Margins.Left = 10.000000000000000000
+    Margins.Top = 20.000000000000000000
+    Margins.Right = 10.000000000000000000
+    Position.X = 10.000000000000000000
+    Position.Y = 210.000000000000000000
+    Size.Width = 322.000000000000000000
+    Size.Height = 247.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object Label1: TLabel
+      Align = Top
+      Margins.Left = 20.000000000000000000
+      Margins.Top = 30.000000000000000000
+      Margins.Right = 20.000000000000000000
+      Position.X = 20.000000000000000000
+      Position.Y = 30.000000000000000000
+      Size.Width = 282.000000000000000000
+      Size.Height = 23.000000000000000000
+      Size.PlatformDefault = False
+      Text = 'Informe seu e-mail:'
+      TabOrder = 1
+      object EmailEdit: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 2
+        Position.Y = 20.000000000000000000
+        Margins.Top = 20.000000000000000000
+        Size.Width = 282.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+      end
+    end
+    object Button1: TButton
+      Align = Top
+      Margins.Left = 20.000000000000000000
+      Margins.Top = 60.000000000000000000
+      Margins.Right = 20.000000000000000000
+      Position.X = 20.000000000000000000
+      Position.Y = 113.000000000000000000
+      Size.Width = 282.000000000000000000
+      Size.Height = 44.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      Text = 'Confirm'
+      TextSettings.Trimming = None
+      TintColor = claLimegreen
+    end
+    object RoundRect1: TRoundRect
+      Align = Top
+      Fill.Color = claCornflowerblue
+      Margins.Left = 50.000000000000000000
+      Margins.Right = 50.000000000000000000
+      Position.X = 50.000000000000000000
+      Position.Y = 157.000000000000000000
+      Size.Width = 222.000000000000000000
+      Size.Height = 42.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      OnClick = RoundRect1Click
+      object Label3: TLabel
+        Align = Center
+        StyledSettings = [Family]
+        TextSettings.FontColor = claWhite
+        TextSettings.HorzAlign = Center
+        Text = 'Confirm'
+        TabOrder = 0
+      end
+      object ShadowEffect1: TShadowEffect
+        Distance = 2.000000000000000000
+        Direction = 45.000000000000000000
+        Softness = 0.300000011920929000
+        Opacity = 0.300000011920929000
+        ShadowColor = claBlack
+      end
+    end
+  end
+  object IdSMTP1: TIdSMTP
+    Host = 'smtp.gmail.com'
+    SASLMechanisms = <>
+    Username = 'felipebastosweb@gmail.com'
+    Left = 232
+    Top = 64
+  end
+end
