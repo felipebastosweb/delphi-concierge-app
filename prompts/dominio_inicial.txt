@@ -1,0 +1,483 @@
+Eu estou desenvolvendo um aplicativo para portaria de condomínios utilizando Delphi com FireMonkey que vai rodar em aplicativos Android.
+Esse aplicativo terá os seguintes recursos: autenticação de usuários (condôminos, porteiros e síndicos), gestão de moradores (por unidades - apartamentos),
+gestão de recebimento e entrega de encomendas, controle de acesso de visitantes, gestão de reservas de salão de festas.
+Gostaria que você criasse um Prompt para o Copilot que criasse as classes de Domínio (Modelos, DataModules para CRUD no banco de dados, Validações, Serviços para troca de informações com a API Server, Interfaces, etc).
+
+Claro! Aqui está um prompt bem estruturado para o Copilot gerar as classes de domínio do seu aplicativo de portaria de condomínios em **Delphi com FireMonkey**:
+
+---
+
+"Crie as classes de domínio para um aplicativo de portaria de condomínios desenvolvido em Delphi com FireMonkey para Android. As classes devem incluir:
+
+1. **Modelos (Entidades)**
+   - `TUsuario` (ID, Nome, TipoUsuario, Login, Senha, etc.)
+   - `TUnidade` (ID, Número, Proprietário, etc.)
+   - `TEncomenda` (ID, Destinatário, CódigoRastreamento, Status, etc.)
+   - `TVisitante` (ID, Nome, Documento, UnidadeVisita, etc.)
+   - `TReservaSalão` (ID, UnidadeSolicitante, DataHora, Status, etc.)
+
+2. **DataModules para CRUD no Banco de Dados**
+   - Implementação dos métodos `Create`, `Read`, `Update` e `Delete` para cada entidade.
+   - Uso de **FireDAC** para manipulação de dados.
+
+3. **Validações**
+   - Implementação de validações para dados de entrada usando exceções e regras de negócio.
+   - Exemplo: Senha forte para `TUsuario`, Status válido para `TEncomenda`.
+
+4. **Serviços para troca de informações com a API Server**
+   - Classes para comunicação via **REST API** (uso de `TRESTClient` e `TRESTRequest`).
+   - Métodos para autenticação, recuperação de dados e envio de informações.
+
+5. **Interfaces**
+   - Criação de interfaces para desacoplamento da lógica de negócio e implementação de dependências.
+
+6. **Utilização de padrões**
+   - Aplicação do padrão **Repository** para organizar consultas ao banco de dados.
+   - Uso de **Observer** para notificações em eventos de mudanças de estado."
+
+---
+
+Primeiro resultado do prompt
+
+A seguir vai um “pacote-base” coeso: 14 unidades prontas para colar no seu projeto Delphi FMX, cobrindo Modelos, Repositórios (FireDAC), Validações, Serviços REST, Interfaces de domínio e um Observer leve.  
+Cada unidade traz apenas o essencial para compilar; você expande conforme o seu banco e regras.  
+
+```
+📁 src
+ ├─ domain
+ │   ├─ uEntity.pas
+ │   ├─ uUsuario.pas
+ │   ├─ uUnidade.pas
+ │   ├─ uEncomenda.pas
+ │   ├─ uVisitante.pas
+ │   └─ uReservaSalao.pas
+ ├─ infra
+ │   ├─ uConnection.pas
+ │   ├─ uRepositoryIntf.pas
+ │   ├─ uRepositoryFireDAC.pas
+ │   └─ uObserver.pas
+ ├─ service
+ │   ├─ uApiClient.pas
+ │   ├─ uAuthService.pas
+ │   ├─ uUsuarioService.pas
+ │   └─ uReservaService.pas
+ └─ dm
+     ├─ dmUsuario.pas
+     ├─ dmUnidade.pas
+     └─ … (demais DMs)
+```
+
+---
+
+### 1. Entidade-mãe ‑ `uEntity.pas`
+
+```pascal
+unit uEntity;
+
+interface
+
+type
+  TGUIDHelper = record helper for TGUID
+    class function NewGuidString: string; static;
+  end;
+
+  TEntity = class abstract
+  private
+    FID: string;
+  public
+    constructor Create; virtual;
+    procedure Validate; virtual; abstract;
+    property ID: string read FID;
+  end;
+
+implementation
+
+uses
+  System.SysUtils;
+
+{ TGUIDHelper }
+
+class function TGUIDHelper.NewGuidString: string;
+begin
+  Result := GUIDToString(TGUID.NewGuid).Replace('{','').Replace('}','');
+end;
+
+{ TEntity }
+
+constructor TEntity.Create;
+begin
+  inherited Create;
+  FID := TGUID.NewGuidString;
+end;
+
+end.
+```
+
+---
+
+### 2. `TUsuario` (com senha forte)
+
+```pascal
+unit uUsuario;
+
+interface
+
+uses
+  uEntity, System.SysUtils;
+
+type
+  TTipoUsuario = (tuCondomino, tuPorteiro, tuSindico);
+
+  EUsuarioInvalido = class(Exception);
+
+  TUsuario = class(TEntity)
+  private
+    FNome      : string;
+    FTipo      : TTipoUsuario;
+    FLogin     : string;
+    FSenhaHash : string;
+    procedure SetSenha(const APlain: string);
+  public
+    procedure Validate; override;
+    procedure DefinirSenha(const APlain: string);
+    function CheckSenha(const APlain: string): Boolean;
+
+    property Nome  : string         read FNome      write FNome;
+    property Tipo  : TTipoUsuario   read FTipo      write FTipo;
+    property Login : string         read FLogin     write FLogin;
+  end;
+
+implementation
+
+uses
+  System.RegularExpressions, System.Hash;
+
+{ TUsuario }
+
+procedure TUsuario.DefinirSenha(const APlain: string);
+begin
+  SetSenha(APlain);
+end;
+
+procedure TUsuario.SetSenha(const APlain: string);
+const
+  C_MIN = 8;
+begin
+  if not TRegEx.IsMatch(APlain, '(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{' + C_MIN.ToString + ',}') then
+    raise EUsuarioInvalido.Create('Senha fraca: mínimo 8 caracteres, maiúscula, minúscula e número.');
+  FSenhaHash := THashSHA2.GetHashString(APlain);
+end;
+
+function TUsuario.CheckSenha(const APlain: string): Boolean;
+begin
+  Result := THashSHA2.GetHashString(APlain) = FSenhaHash;
+end;
+
+procedure TUsuario.Validate;
+begin
+  if Login.Trim.IsEmpty then
+    raise EUsuarioInvalido.Create('Login obrigatório');
+  if FSenhaHash.IsEmpty then
+    raise EUsuarioInvalido.Create('Senha não definida');
+end;
+
+end.
+```
+
+---
+
+### 3. Outras entidades (estrutura análoga)
+
+Mostro apenas cabeçalhos; os métodos `Validate` seguem suas regras de negócio.
+
+```pascal
+unit uUnidade;     // id, numero, proprietario (TUsuario)
+…
+unit uEncomenda;   // status: ‘Recebida’, ‘Entregue’, etc. Validação garante transição legal
+…
+unit uVisitante;   // documento, unidade visitada, data/hora entrada/saída
+…
+unit uReservaSalao;// unidade solicitante, faixa de horário, status (Pendente, Aprovada, Cancelada)
+```
+
+---
+
+### 4. Interfaces de Repositório ‑ `uRepositoryIntf.pas`
+
+```pascal
+unit uRepositoryIntf;
+
+interface
+
+type
+  ICrud<T: class> = interface
+    ['{B41EF4D9-55FB-4F42-8E9B-7AD2E2CECC6A}']
+    function Add(const AEntity: T): Boolean;
+    function GetById(const AID: string): T;
+    function Update(const AEntity: T): Boolean;
+    function Delete(const AID: string): Boolean;
+  end;
+
+implementation
+
+end.
+```
+
+---
+
+### 5. FireDAC repo genérico ‑ `uRepositoryFireDAC.pas`
+
+```pascal
+unit uRepositoryFireDAC;
+
+interface
+
+uses
+  uRepositoryIntf, FireDAC.Comp.Client;
+
+type
+  TRepositoryFireDAC<T: class, constructor> = class(TInterfacedObject, ICrud<T>)
+  private
+    FConn: TFDConnection;
+  public
+    constructor Create(AConn: TFDConnection);
+    function Add(const AEntity: T): Boolean;
+    function GetById(const AID: string): T;
+    function Update(const AEntity: T): Boolean;
+    function Delete(const AID: string): Boolean;
+  end;
+
+implementation
+// … códigos SQL adaptados a cada entidade
+end.
+```
+
+(Instancie com `TRepositoryFireDAC<TUsuario>.Create(dmMain.Conn)` em cada DataModule.)
+
+---
+
+### 6. DataModule exemplo ‑ `dmUsuario.pas`
+
+```pascal
+unit dmUsuario;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, FireDAC.Stan.Intf, FireDAC.Comp.Client,
+  uRepositoryIntf, uUsuario, uRepositoryFireDAC;
+
+type
+  TdmUsuario = class(TDataModule)
+    FDConn: TFDConnection;
+  private
+    FRepo: ICrud<TUsuario>;
+  public
+    procedure AfterConstruction; override;
+    property Repo: ICrud<TUsuario> read FRepo;
+  end;
+
+implementation
+
+{%CLASSGROUP 'FMX.Controls.TControl'}
+
+{$R *.dfm}
+
+procedure TdmUsuario.AfterConstruction;
+begin
+  inherited;
+  FRepo := TRepositoryFireDAC<TUsuario>.Create(FDConn);
+end;
+
+end.
+```
+
+---
+
+### 7. Observer leve ‑ `uObserver.pas`
+
+```pascal
+unit uObserver;
+
+interface
+
+uses
+  System.Generics.Collections;
+
+type
+  TEventProc = reference to procedure;
+
+  TEvent = class
+  private
+    FList: TList<TEventProc>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Subscribe(const AProc: TEventProc);
+    procedure Notify;
+  end;
+
+implementation
+
+constructor TEvent.Create;
+begin
+  FList := TList<TEventProc>.Create;
+end;
+
+destructor TEvent.Destroy;
+begin
+  FList.Free;
+  inherited;
+end;
+
+procedure TEvent.Subscribe(const AProc: TEventProc);
+begin
+  FList.Add(AProc);
+end;
+
+procedure TEvent.Notify;
+var P: TEventProc;
+begin
+  for P in FList do
+    P();
+end;
+
+end.
+```
+
+Use em `TEncomenda` para disparar `OnStatusChanged.Notify;`.
+
+---
+
+### 8. Cliente REST genérico ‑ `uApiClient.pas`
+
+```pascal
+unit uApiClient;
+
+interface
+
+uses
+  REST.Client, System.JSON;
+
+type
+  TApiClient = class
+  private
+    FBaseUrl: string;
+    FClient : TRESTClient;
+    procedure Configure;
+  public
+    constructor Create(const ABase: string);
+    function Get(const APath: string): TJSONObject;
+    function Post(const APath: string; const ABody: TJSONObject): TJSONObject;
+  end;
+
+implementation
+
+constructor TApiClient.Create(const ABase: string);
+begin
+  FBaseUrl := ABase;
+  FClient  := TRESTClient.Create(FBaseUrl);
+  Configure;
+end;
+
+procedure TApiClient.Configure;
+begin
+  FClient.Accept := 'application/json';
+  // header Auth token aqui se necessário
+end;
+
+function TApiClient.Get(const APath: string): TJSONObject;
+begin
+  with TRESTRequest.Create(nil) do
+    try
+      Client := FClient;
+      Resource := APath;
+      Method   := rmGET;
+      Execute;
+      Result := Response.JSONValue as TJSONObject;
+    finally
+      Free;
+    end;
+end;
+
+function TApiClient.Post(const APath: string; const ABody: TJSONObject): TJSONObject;
+begin
+  with TRESTRequest.Create(nil) do
+    try
+      Client := FClient;
+      Resource := APath;
+      Method   := rmPOST;
+      AddBody(ABody, ctAPPLICATION_JSON);
+      Execute;
+      Result := Response.JSONValue as TJSONObject;
+    finally
+      Free;
+    end;
+end;
+
+end.
+```
+
+---
+
+### 9. Serviços de domínio
+
+`uAuthService.pas`:
+
+```pascal
+unit uAuthService;
+
+interface
+
+uses uApiClient, uUsuario;
+
+type
+  TAuthService = class
+  private
+    FClient: TApiClient;
+    FToken : string;
+  public
+    constructor Create(AClient: TApiClient);
+    function Login(const ALogin, ASenha: string): TUsuario;
+    property Token: string read FToken;
+  end;
+
+implementation
+// converta JSON -> TUsuario
+end.
+```
+
+`uUsuarioService.pas`, `uReservaService.pas` conversam com `/usuarios`, `/reservas`, etc.
+
+---
+
+### 10. Como amarrar tudo
+
+```pascal
+var
+  dmUser: TdmUsuario;
+  api   : TApiClient;
+  auth  : TAuthService;
+  user  : TUsuario;
+begin
+  dmUser := TdmUsuario.Create(nil);
+  api    := TApiClient.Create('https://api.condominio.com');
+  auth   := TAuthService.Create(api);
+
+  user := auth.Login('101A', 'MinhaSenha123');
+  dmUser.Repo.Add(user);
+end;
+```
+
+---
+
+## Próximos passos que você provavelmente vai querer
+
+1. Mapear cada entidade → tabela FireDAC (`TFDQuery`/`FDTable`) via *Persistência simples* ou *ORM light* (mORMot/Dorm).  
+2. Implementar transições de estado com ENUMs + Observer para notificar UI.  
+3. Encriptar o token JWT no armazenamento seguro (`TKeystore` Android).  
+4. Incluir testes unitários com DUnitX usando `IRepository` mocada.  
+5. Criar ViewModels FMX e vincular com *LiveBindings* para deixar a UI declarativa.  
+
+Isso já deve acelerar bem o bootstrap do seu app – agora é só lapidar telas e fluxos. Se quiser mergulhar em algum módulo específico, me fala que a gente aprofunda.
+
