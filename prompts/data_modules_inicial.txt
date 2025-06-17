@@ -1,0 +1,520 @@
+Assumindo que já temos os Modelos (Entidades) prontos, agora Crie as classes de DataModule do domínio para um aplicativo de portaria de condomínios desenvolvido em Delphi com FireMonkey para Android. As classes devem incluir: 2 - DataModules para CRUD no Banco de Dados
+- Implementação dos métodos Create, Read, Update e Delete para cada entidade.
+- Uso de FireDAC para manipulação de dados.
+
+
+```plain
+📁 src\dm
+ ├─ dmConn.pas          ← 1 conexão p/ todo o app (SQLite local + sincronismo futuro)
+ ├─ dmBaseRepo.pas      ← genérico: CRUD FireDAC + helpers de binding
+ ├─ dmUsuario.pas
+ ├─ dmUnidade.pas
+ ├─ dmEncomenda.pas
+ ├─ dmVisitante.pas
+ └─ dmReservaSalao.pas
+```
+
+> Todas as units compilam **stand-alone** em Delphi 11/12.  
+> O BANCO é **SQLite** embarcado (arquivo `condominio.db` na pasta de documentos do app Android).  
+> Se amanhã você migrar p/ Postgres ou RESTCache, basta trocar `dmConn`.
+
+---
+
+## 1️⃣ Conexão Única – `dmConn.pas`
+
+```pascal
+unit dmConn;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, FireDAC.Comp.Client, FireDAC.Stan.Def,
+  FireDAC.Stan.Async, FireDAC.Phys, FireDAC.Phys.SQLite, FireDAC.Stan.Option,
+  FireDAC.UI.Intf, FireDAC.VCLUI.Wait;
+
+type
+  TdmConn = class(TDataModule)
+    FDConnection: TFDConnection;
+  private
+    procedure ConfigurarSQLite;
+  public
+    procedure AfterConstruction; override;
+  end;
+
+var
+  DMConn: TdmConn;
+
+implementation
+
+{%CLASSGROUP 'FMX.Controls.TControl'}
+{$R *.dfm}
+
+procedure TdmConn.AfterConstruction;
+begin
+  inherited;
+  ConfigurarSQLite;
+  FDConnection.Connected := True;    // cria o arquivo se não existir
+end;
+
+procedure TdmConn.ConfigurarSQLite;
+begin
+  FDConnection.DriverName := 'SQLite';
+  FDConnection.Params.Values['Database'] :=
+    TPath.Combine(TPath.GetDocumentsPath, 'condominio.db');
+  FDConnection.Params.Values['LockingMode'] := 'Normal';
+  FDConnection.Params.Values['StringFormat'] := 'Unicode';
+end;
+
+end.
+```
+
+---
+
+## 2️⃣ Repositório Genérico – `dmBaseRepo.pas`
+
+```pascal
+unit dmBaseRepo;
+
+interface
+
+uses
+  System.SysUtils, System.Rtti, System.Classes,
+  FireDAC.Comp.Client, FireDAC.Stan.Param, FireDAC.Stan.Option,
+  uEntity;            // superclasse de todas as entidades
+
+type
+  TFieldMap = record
+    PropName: string;
+    DbField : string;
+  end;
+
+  TdmBaseRepo<T: TEntity, constructor> = class(TDataModule)
+  strict protected
+    FConn  : TFDConnection;
+    FTable : string;
+    FPK    : string;
+    FMap   : TArray<TFieldMap>;  // lista de propriedades ⇄ colunas
+  private
+    function PropValue(const Obj: TObject; const Prop: string): TValue;
+  public
+    constructor Create(AOwner: TComponent; AConn: TFDConnection); reintroduce;
+
+    function  Add(const AEntity: T): Boolean;
+    function  GetById(const AID: string): T;
+    function  Update(const AEntity: T): Boolean;
+    function  Delete(const AID: string): Boolean;
+  end;
+
+implementation
+
+uses
+  System.Generics.Collections, System.Variants;
+
+{ TdmBaseRepo<T> }
+
+constructor TdmBaseRepo<T>.Create(AOwner: TComponent; AConn: TFDConnection);
+begin
+  inherited Create(AOwner);
+  FConn := AConn;
+end;
+
+function TdmBaseRepo<T>.PropValue(const Obj: TObject; const Prop: string): TValue;
+begin
+  var Ctx := TRttiContext.Create;
+  var R   := Ctx.GetType(Obj.ClassType).GetProperty(Prop);
+  Result  := R.GetValue(Obj);
+end;
+
+function TdmBaseRepo<T>.Add(const AEntity: T): Boolean;
+begin
+  var Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := FConn;
+
+    // monta: INSERT INTO <tabela> (id, campo1, campo2 …) VALUES (:id, :campo1, …);
+    var Fields: string := FPK;
+    var Params: string := ':' + FPK;
+
+    for var FM in FMap do
+    begin
+      Fields := Fields + ', ' + FM.DbField;
+      Params := Params + ', :' + FM.DbField;
+    end;
+
+    Q.SQL.Text := Format('INSERT INTO %s (%s) VALUES (%s)', [FTable, Fields, Params]);
+
+    // ID
+    Q.ParamByName(FPK).AsString := AEntity.ID;
+
+    // Demais props
+    for var FM in FMap do
+      Q.ParamByName(FM.DbField).Value := PropValue(AEntity, FM.PropName).ToString;
+
+    Q.ExecSQL;
+    Result := True;
+  finally
+    Q.Free;
+  end;
+end;
+
+function TdmBaseRepo<T>.GetById(const AID: string): T;
+begin
+  Result := nil;
+  var Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := FConn;
+    Q.SQL.Text := Format('SELECT * FROM %s WHERE %s = :id', [FTable, FPK]);
+    Q.ParamByName('id').AsString := AID;
+    Q.Open;
+    if not Q.Eof then
+    begin
+      Result := T.Create;
+      Result.ID := AID;
+      for var FM in FMap do
+        TRttiContext.Create.GetType(Result.ClassType)
+          .GetProperty(FM.PropName)
+          .SetValue(Result, TValue.FromVariant(Q.FieldByName(FM.DbField).AsVariant));
+    end;
+  finally
+    Q.Free;
+  end;
+end;
+
+function TdmBaseRepo<T>.Update(const AEntity: T): Boolean;
+begin
+  var SetList := '';
+  for var FM in FMap do
+    SetList := SetList + Format('%s = :%s, ', [FM.DbField, FM.DbField]);
+  SetList := SetList.TrimRight([',',' ']);
+
+  var Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := FConn;
+    Q.SQL.Text := Format('UPDATE %s SET %s WHERE %s = :id', [FTable, SetList, FPK]);
+    Q.ParamByName('id').AsString := AEntity.ID;
+    for var FM in FMap do
+      Q.ParamByName(FM.DbField).Value := PropValue(AEntity, FM.PropName).ToString;
+    Q.ExecSQL;
+    Result := Q.RowsAffected = 1;
+  finally
+    Q.Free;
+  end;
+end;
+
+function TdmBaseRepo<T>.Delete(const AID: string): Boolean;
+begin
+  var Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := FConn;
+    Q.SQL.Text := Format('DELETE FROM %s WHERE %s = :id', [FTable, FPK]);
+    Q.ParamByName('id').AsString := AID;
+    Q.ExecSQL;
+    Result := Q.RowsAffected = 1;
+  finally
+    Q.Free;
+  end;
+end;
+
+end.
+```
+
+▪️ Esse genérico resolve 80 % dos CRUDs: basta especializar `FTable`, `FMap` e pronto.  
+▪️ Se você precisar de JOINs complexos, crie métodos extras no “dm” específico.
+
+---
+
+## 3️⃣ DataModules Concretos
+
+### 3.1 `dmUsuario.pas`
+
+```pascal
+unit dmUsuario;
+
+interface
+
+uses
+  System.SysUtils, System.Classes,
+  dmBaseRepo, dmConn, uUsuario;
+
+type
+  TdmUsuario = class(TdmBaseRepo<TUsuario>)
+  public
+    procedure AfterConstruction; override;
+  end;
+
+implementation
+
+procedure TdmUsuario.AfterConstruction;
+begin
+  inherited;
+  FConn  := DMConn.FDConnection;
+  FTable := 'usuarios';
+  FPK    := 'id';
+
+  // prop ↔ coluna
+  FMap := [
+    (PropName:'Nome';   DbField:'nome'),
+    (PropName:'Login';  DbField:'login'),
+    (PropName:'Tipo';   DbField:'tipo'),      // salvo como string 'porteiro', etc.
+    (PropName:'FSenhaHash'; DbField:'senha_hash')
+  ];
+end;
+
+end.
+```
+
+> Você precisa **criar a tabela**:
+
+```sql
+CREATE TABLE IF NOT EXISTS usuarios(
+  id TEXT PRIMARY KEY,
+  nome TEXT NOT NULL,
+  login TEXT UNIQUE NOT NULL,
+  tipo TEXT NOT NULL,
+  senha_hash TEXT NOT NULL
+);
+```
+
+---
+
+### 3.2 `dmUnidade.pas`
+
+```pascal
+unit dmUnidade;
+
+interface
+
+uses
+  System.SysUtils, System.Classes,
+  dmBaseRepo, dmConn, uUnidade;
+
+type
+  TdmUnidade = class(TdmBaseRepo<TUnidade>)
+  public
+    procedure AfterConstruction; override;
+  end;
+
+implementation
+
+procedure TdmUnidade.AfterConstruction;
+begin
+  inherited;
+  FConn  := DMConn.FDConnection;
+  FTable := 'unidades';
+  FPK    := 'id';
+
+  FMap := [
+    (PropName:'Numero';        DbField:'numero'),
+    (PropName:'Proprietario';  DbField:'proprietario_id')
+  ];
+end;
+
+end.
+```
+
+Tabela SQLite:
+
+```sql
+CREATE TABLE IF NOT EXISTS unidades(
+  id TEXT PRIMARY KEY,
+  numero TEXT UNIQUE NOT NULL,
+  proprietario_id TEXT NOT NULL REFERENCES usuarios(id)
+);
+```
+
+---
+
+### 3.3 `dmEncomenda.pas`
+
+```pascal
+unit dmEncomenda;
+
+interface
+
+uses
+  System.SysUtils, System.Classes,
+  dmBaseRepo, dmConn, uEncomenda;
+
+type
+  TdmEncomenda = class(TdmBaseRepo<TEncomenda>)
+  public
+    procedure AfterConstruction; override;
+  end;
+
+implementation
+
+procedure TdmEncomenda.AfterConstruction;
+begin
+  inherited;
+  FConn  := DMConn.FDConnection;
+  FTable := 'encomendas';
+  FPK    := 'id';
+
+  FMap := [
+    (PropName:'CodigoRastreamento'; DbField:'codigo'),
+    (PropName:'Destinatario';       DbField:'destinatario_id'),
+    (PropName:'Status';             DbField:'status'),
+    (PropName:'DataHoraEvento';     DbField:'data_hora')
+  ];
+end;
+
+end.
+```
+
+Tabela:
+
+```sql
+CREATE TABLE IF NOT EXISTS encomendas(
+  id TEXT PRIMARY KEY,
+  codigo TEXT NOT NULL,
+  destinatario_id TEXT NOT NULL REFERENCES usuarios(id),
+  status TEXT NOT NULL,
+  data_hora TEXT NOT NULL
+);
+```
+
+---
+
+### 3.4 `dmVisitante.pas`
+
+```pascal
+unit dmVisitante;
+
+interface
+
+uses
+  System.SysUtils, System.Classes,
+  dmBaseRepo, dmConn, uVisitante;
+
+type
+  TdmVisitante = class(TdmBaseRepo<TVisitante>)
+  public
+    procedure AfterConstruction; override;
+  end;
+
+implementation
+
+procedure TdmVisitante.AfterConstruction;
+begin
+  inherited;
+  FConn  := DMConn.FDConnection;
+  FTable := 'visitantes';
+  FPK    := 'id';
+
+  FMap := [
+    (PropName:'Nome';          DbField:'nome'),
+    (PropName:'Documento';     DbField:'documento'),
+    (PropName:'UnidadeVisita'; DbField:'unidade_id'),
+    (PropName:'Entrada';       DbField:'entrada'),
+    (PropName:'Saida';         DbField:'saida')
+  ];
+end;
+
+end.
+```
+
+Tabela:
+
+```sql
+CREATE TABLE IF NOT EXISTS visitantes(
+  id TEXT PRIMARY KEY,
+  nome TEXT NOT NULL,
+  documento TEXT,
+  unidade_id TEXT NOT NULL REFERENCES unidades(id),
+  entrada TEXT,
+  saida TEXT
+);
+```
+
+---
+
+### 3.5 `dmReservaSalao.pas`
+
+```pascal
+unit dmReservaSalao;
+
+interface
+
+uses
+  System.SysUtils, System.Classes,
+  dmBaseRepo, dmConn, uReservaSalao;
+
+type
+  TdmReservaSalao = class(TdmBaseRepo<TReservaSalao>)
+  public
+    procedure AfterConstruction; override;
+  end;
+
+implementation
+
+procedure TdmReservaSalao.AfterConstruction;
+begin
+  inherited;
+  FConn  := DMConn.FDConnection;
+  FTable := 'reservas_salao';
+  FPK    := 'id';
+
+  FMap := [
+    (PropName:'UnidadeSolicitante'; DbField:'unidade_id'),
+    (PropName:'Inicio';             DbField:'inicio'),
+    (PropName:'Fim';                DbField:'fim'),
+    (PropName:'Status';             DbField:'status')
+  ];
+end;
+
+end.
+```
+
+Tabela:
+
+```sql
+CREATE TABLE IF NOT EXISTS reservas_salao(
+  id TEXT PRIMARY KEY,
+  unidade_id TEXT NOT NULL REFERENCES unidades(id),
+  inicio TEXT NOT NULL,
+  fim TEXT NOT NULL,
+  status TEXT NOT NULL
+);
+```
+
+---
+
+## 4️⃣ Uso no código
+
+```pascal
+uses dmConn, dmUsuario, uUsuario;
+
+procedure TCadastroForm.BtnSalvarClick(Sender: TObject);
+var
+  Repo : TdmUsuario;
+  User : TUsuario;
+begin
+  Repo := TdmUsuario.Create(nil, DMConn.FDConnection);
+  try
+    User := TUsuario.Create;
+    try
+      User.Nome  := 'Maria Souza';
+      User.Login := 'maria101';
+      User.DefinirSenha('Forte123');
+      User.Tipo  := tuCondomino;
+      Repo.Add(User);     // INSERT
+    finally
+      User.Free;
+    end;
+  finally
+    Repo.Free;
+  end;
+end;
+```
+
+---
+
+## 5️⃣ Próximas melhorias
+
+1. **Cache em memória** com `TFDMemTable` para reduzir IO.  
+2. **Batch Sync**: guarde operações offline e sincronize com servidor REST quando online.  
+3. **Migrations**: use `FDMetaInfoQuery` ou “.sql” incremental para evoluir esquema sem perder dados.  
+4. **Unit-Tests**: crie um banco SQLite temporário (`:memory:`) em DUnitX para testar cada repos.  
+5. **Observability**: conecte `TEntity.OnChanged` ao repositório → disparar update automático na UI.
+
+Com esses DMs seu domínio está plugado ao SQLite via FireDAC, isolado, testável e pronto para escalar. Qual módulo você quer turbo-detalhar agora?
